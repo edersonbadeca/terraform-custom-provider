@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -68,12 +69,20 @@ func (p *hashicupsProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 
 func (p *hashicupsProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	// Retrieve provider data from configuration
+	tflog.Info(ctx, "Configuring HashiCups provider")
 	var config hashicupsProviderModel
 	diags := req.Config.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	ctx = tflog.SetField(ctx, "host", config.Host)
+	ctx = tflog.SetField(ctx, "username", config.Username)
+	ctx = tflog.SetField(ctx, "password", config.Password)
+	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "password") // Mask the password field
+
+	tflog.Debug(ctx, "Configuring HashiCups provider")
 
 	// If practitioner provided a configuration value for any of the
 	// attributes, it must be a known value.
@@ -181,6 +190,8 @@ func (p *hashicupsProvider) Configure(ctx context.Context, req provider.Configur
 	// type Configure methods.
 	resp.DataSourceData = client
 	resp.ResourceData = client
+
+	tflog.Info(ctx, "Configured HashiCups client", map[string]any{"success": true})
 }
 
 // DataSources defines the data sources implemented in the provider.
@@ -192,5 +203,7 @@ func (p *hashicupsProvider) DataSources(_ context.Context) []func() datasource.D
 
 // Resources defines the resources implemented in the provider.
 func (p *hashicupsProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewOrderResource,
+	}
 }
